@@ -13,40 +13,27 @@ Laravel 10 sampai 13, PHP 8.1 ke atas.
 
 1. Di Watchpost, buka **Website → Tambah website**. Setelah disimpan, salin `WATCHPOST_URL` dan `WATCHPOST_TOKEN` yang ditampilkan (token hanya muncul sekali).
 
-2. Di `composer.json` website, tambahkan repositori privat package ini:
-
-   ```json
-   "repositories": [
-       { "type": "vcs", "url": "https://github.com/Kisantra/watchpost-laravel.git" }
-   ]
-   ```
-
-   Karena repo-nya privat, server yang menjalankan `composer install` butuh token GitHub yang punya akses ke org Kisantra (cukup sekali per server):
+2. Daftarkan repositori package ini di `composer.json` website, lalu pasang:
 
    ```bash
-   composer config --global github-oauth.github.com ghp_...
+   composer config repositories.watchpost vcs https://github.com/Kisantra/watchpost-laravel.git
+   composer require kisantra/watchpost-laravel:^1.0
    ```
 
-3. Pasang:
-
-   ```bash
-   composer require kisantra/watchpost-laravel
-   ```
-
-4. Tambahkan ke `.env` website:
+3. Tambahkan ke `.env` website:
 
    ```env
    WATCHPOST_URL=https://watchpost.domainanda.com
    WATCHPOST_TOKEN=wp_...
    ```
 
-5. Pastikan scheduler website berjalan (biasanya sudah ada di crontab):
+4. Pastikan scheduler website berjalan (biasanya sudah ada di crontab):
 
    ```cron
    * * * * * cd /path/ke/website && php artisan schedule:run >> /dev/null 2>&1
    ```
 
-6. Uji koneksinya:
+5. Uji koneksinya:
 
    ```bash
    php artisan watchpost:test
