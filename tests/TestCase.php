@@ -21,5 +21,7 @@ abstract class TestCase extends Orchestra
         // The package root plays the website: tests/ is "app" code, vendor/ is framework.
         $app['config']->set('watchpost.base_path', dirname(__DIR__));
         $app['config']->set('cache.default', 'array');
+        // The web middleware group encrypts cookies.
+        $app['config']->set('app.key', 'base64:'.base64_encode(str_repeat('w', 32)));
     }
 }

@@ -3,6 +3,7 @@
 namespace Kisantra\Watchpost;
 
 use Illuminate\Support\Str;
+use Kisantra\Watchpost\Http\InjectBrowserScript;
 use Throwable;
 
 /**
@@ -133,6 +134,8 @@ class PayloadFactory
                 'route' => $request->route()?->getName(),
                 'user' => ($id = $request->user()?->getAuthIdentifier()) !== null ? (string) $id : null,
                 'ip' => $request->ip(),
+                // Matches the browser's screenshot of this request, when there is one.
+                'trace_id' => $request->attributes->get(InjectBrowserScript::TRACE_ATTRIBUTE),
             ];
         } catch (Throwable) {
             return null;

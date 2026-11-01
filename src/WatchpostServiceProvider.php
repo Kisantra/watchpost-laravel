@@ -4,9 +4,11 @@ namespace Kisantra\Watchpost;
 
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Debug\ExceptionHandler;
+use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Support\ServiceProvider;
 use Kisantra\Watchpost\Console\HeartbeatCommand;
 use Kisantra\Watchpost\Console\TestCommand;
+use Kisantra\Watchpost\Http\InjectBrowserScript;
 use Throwable;
 
 class WatchpostServiceProvider extends ServiceProvider
@@ -39,6 +41,21 @@ class WatchpostServiceProvider extends ServiceProvider
                 });
             }
         });
+
+        // Trace ids and the browser script for every page of the website. Added to
+        // the HTTP kernel, which owns the web group and would overwrite a router-only
+        // change when it is first built.
+        $this->loadRoutesFrom(__DIR__.'/../routes/watchpost.php');
+
+        try {
+            $kernel = $this->app->make(HttpKernel::class);
+
+            if (method_exists($kernel, 'appendMiddlewareToGroup')) {
+                $kernel->appendMiddlewareToGroup('web', InjectBrowserScript::class);
+            }
+        } catch (Throwable) {
+            // No web group (an API-only app): there are no pages to add the script to.
+        }
 
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
             if (config('watchpost.heartbeat')) {

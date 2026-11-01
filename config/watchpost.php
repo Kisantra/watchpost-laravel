@@ -68,6 +68,25 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Browser
+    |--------------------------------------------------------------------------
+    |
+    | A small script is added to every HTML page. It keeps a trail of the last
+    | pages, clicks and requests in each tab, and when a request fails with a
+    | server error it takes a screenshot of what the visitor saw. Both are sent
+    | through this website to Watchpost and shown on the error. Elements with a
+    | data-watchpost-hide attribute are left out of screenshots.
+    |
+    */
+
+    'browser' => [
+        'enabled' => env('WATCHPOST_BROWSER', true),
+        'screenshots' => env('WATCHPOST_SCREENSHOTS', true),
+        'breadcrumbs' => (int) env('WATCHPOST_BREADCRUMBS', 10),
+    ],
+
     // Frames outside this path, or inside vendor/, are framework frames.
     'base_path' => null,
 

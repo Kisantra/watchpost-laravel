@@ -36,14 +36,25 @@ class Client
     }
 
     /**
+     * The browser's trail and screenshot for a failed request. Sent after the
+     * response, so it may take longer than an error report.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public function sendClientReport(array $payload): bool
+    {
+        return $this->post('/api/ingest/client', $payload, 204, max(10.0, (float) config('watchpost.timeout', 2)));
+    }
+
+    /**
      * Success means the exact status Watchpost answers with, so a wrong
      * WATCHPOST_URL that happens to serve a normal page is not mistaken for it.
      *
      * @param  array<string, mixed>  $payload
      */
-    private function post(string $path, array $payload, int $expectedStatus): bool
+    private function post(string $path, array $payload, int $expectedStatus, ?float $timeout = null): bool
     {
-        $timeout = (float) config('watchpost.timeout', 2);
+        $timeout ??= (float) config('watchpost.timeout', 2);
 
         try {
             return Http::timeout($timeout)
