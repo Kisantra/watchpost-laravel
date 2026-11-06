@@ -6,6 +6,9 @@
  * fails with a server error, it captures what the visitor was looking at and
  * sends both, through the website, to Watchpost, tagged with the request's
  * trace id so they land on the right error.
+ *
+ * The website's own bug report form can read the same trail through
+ * window.Watchpost.trail() and send it with the report.
  */
 (function () {
     'use strict';
@@ -50,6 +53,13 @@
             // Storage can be full or blocked; the trail is a nice-to-have.
         }
     }
+
+    // For the website's bug report form: the steps before the user opened it.
+    window.Watchpost = {
+        trail: function () {
+            return trail();
+        },
+    };
 
     function parse(url) {
         try {
