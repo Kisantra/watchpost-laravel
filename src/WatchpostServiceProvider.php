@@ -7,6 +7,7 @@ use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Support\ServiceProvider;
 use Kisantra\Watchpost\Console\HeartbeatCommand;
+use Kisantra\Watchpost\Console\SyncTicketsCommand;
 use Kisantra\Watchpost\Console\TestCommand;
 use Kisantra\Watchpost\Http\InjectBrowserScript;
 use Throwable;
@@ -30,7 +31,7 @@ class WatchpostServiceProvider extends ServiceProvider
                 __DIR__.'/../config/watchpost.php' => config_path('watchpost.php'),
             ], 'watchpost-config');
 
-            $this->commands([HeartbeatCommand::class, TestCommand::class]);
+            $this->commands([HeartbeatCommand::class, SyncTicketsCommand::class, TestCommand::class]);
         }
 
         // Only exceptions Laravel itself would report reach this callback;
@@ -61,6 +62,11 @@ class WatchpostServiceProvider extends ServiceProvider
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
             if (config('watchpost.heartbeat')) {
                 $schedule->command('watchpost:heartbeat')->everyMinute()->withoutOverlapping();
+            }
+
+            // Calls Watchpost only when the website listens to TicketUpdated.
+            if (config('watchpost.tickets')) {
+                $schedule->command('watchpost:sync-tickets')->everyMinute()->withoutOverlapping();
             }
         });
     }

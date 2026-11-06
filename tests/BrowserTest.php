@@ -5,6 +5,7 @@ namespace Kisantra\Watchpost\Tests;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\View;
 use Kisantra\Watchpost\Http\BrowserScriptController;
 use RuntimeException;
 
@@ -16,8 +17,11 @@ class BrowserTest extends TestCase
 
     protected function defineRoutes($router): void
     {
+        View::addNamespace('watchpost-test', __DIR__.'/views');
+
         Route::middleware('web')->group(function () {
             Route::get('orders', fn () => self::PAGE);
+            Route::get('order-view', fn () => view('watchpost-test::order', ['nomor' => 'ORD-1']));
             Route::get('api-ish', fn () => ['ok' => true]);
             Route::post('orders', fn () => throw new RuntimeException('Gagal simpan order'));
             Route::get('broken', fn () => throw new RuntimeException('Halaman rusak'));
@@ -47,6 +51,15 @@ class BrowserTest extends TestCase
         $this->assertSame(1, substr_count($html, '/watchpost/browser.js'));
 
         $this->assertStringNotContainsString('watchpost', $this->get('/api-ish')->getContent());
+    }
+
+    public function test_a_view_keeps_its_data_for_the_website_tests_after_the_script_is_added(): void
+    {
+        $response = $this->get('/order-view')->assertOk();
+
+        $this->assertStringContainsString('/watchpost/browser.js', $response->getContent());
+        // Websites test their pages with viewData() and assertInertia(), which read the original view.
+        $this->assertSame('ORD-1', $response->viewData('nomor'));
     }
 
     public function test_nothing_is_added_where_watchpost_does_not_report(): void
