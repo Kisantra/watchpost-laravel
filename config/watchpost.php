@@ -70,6 +70,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Bug Reports
+    |--------------------------------------------------------------------------
+    |
+    | Bug reports filed by the website's users, sent with Watchpost::reportBug(),
+    | become tickets in Watchpost (or join the ticket of the error they were
+    | sent from). Switch off to keep them in the website only.
+    |
+    */
+
+    'tickets' => env('WATCHPOST_TICKETS', true),
+
+    /*
+    |--------------------------------------------------------------------------
     | Browser
     |--------------------------------------------------------------------------
     |

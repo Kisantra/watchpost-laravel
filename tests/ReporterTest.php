@@ -7,6 +7,7 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\ValidationException;
+use Kisantra\Watchpost\Facades\Watchpost;
 use RuntimeException;
 
 class ReporterTest extends TestCase
@@ -122,5 +123,42 @@ class ReporterTest extends TestCase
         $this->report(new RuntimeException('Tetap jalan'));
 
         $this->assertTrue(true);
+    }
+
+    public function test_the_website_adds_its_own_values_to_every_error(): void
+    {
+        Http::fake();
+        Watchpost::context(fn () => ['error_id' => 'ERR-AB12CD34EF', 'company' => 'utama']);
+        Watchpost::context(fn () => ['attempt' => 2, 'retried' => true, 'items' => ['tidak', 'teks'], 'long' => str_repeat('a', 300)]);
+
+        $this->report(new RuntimeException('Stok tidak cukup'));
+
+        $context = $this->sentError()['context'];
+
+        $this->assertSame(['error_id', 'company', 'attempt', 'retried', 'long'], array_keys($context));
+        $this->assertSame('ERR-AB12CD34EF', $context['error_id']);
+        $this->assertSame('2', $context['attempt']);
+        $this->assertSame('true', $context['retried']);
+        $this->assertSame(255, strlen($context['long']));
+    }
+
+    public function test_a_failing_context_callback_never_costs_the_error_report(): void
+    {
+        Http::fake();
+        Watchpost::context(fn () => throw new RuntimeException('Konteks rusak'));
+        Watchpost::context(fn () => ['error_id' => 'ERR-AB12CD34EF']);
+
+        $this->report(new RuntimeException('Stok tidak cukup'));
+
+        $this->assertSame(['error_id' => 'ERR-AB12CD34EF'], $this->sentError()['context']);
+    }
+
+    public function test_an_error_without_website_values_has_no_context(): void
+    {
+        Http::fake();
+
+        $this->report(new RuntimeException('Stok tidak cukup'));
+
+        $this->assertNull($this->sentError()['context']);
     }
 }

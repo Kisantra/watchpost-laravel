@@ -20,6 +20,7 @@ class WatchpostServiceProvider extends ServiceProvider
         $this->app->singleton(Client::class);
         $this->app->singleton(PayloadFactory::class);
         $this->app->singleton(Reporter::class);
+        $this->app->singleton(Watchpost::class);
     }
 
     public function boot(): void

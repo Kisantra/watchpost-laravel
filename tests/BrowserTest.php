@@ -95,6 +95,8 @@ class BrowserTest extends TestCase
         $this->assertStringContainsString('immutable', $response->headers->get('Cache-Control'));
         $this->assertStringContainsString('modernScreenshot', $response->getContent());
         $this->assertStringContainsString('X-Watchpost-Trace', $response->getContent());
+        // The website's bug report form reads the trail through it.
+        $this->assertStringContainsString('window.Watchpost = {', $response->getContent());
     }
 
     public function test_the_trail_and_screenshot_are_passed_on_to_watchpost_with_the_site_token(): void

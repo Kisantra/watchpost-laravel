@@ -2,6 +2,7 @@
 
 namespace Kisantra\Watchpost;
 
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use Throwable;
 
@@ -47,6 +48,49 @@ class Client
     }
 
     /**
+     * A bug report, with its attachment when there is one. Returns Watchpost's
+     * answer (ticket id, number, url, linked_to_error), or null when it could
+     * not be delivered. Sent from a queued job, so it may wait for the upload.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array{ticket: int, number: string, url: string, linked_to_error: bool}|null
+     */
+    public function sendTicket(array $payload, ?string $attachmentPath = null, ?string $attachmentName = null): ?array
+    {
+        try {
+            $request = $this->request(max(10.0, (float) config('watchpost.timeout', 2)));
+            $contents = $attachmentPath !== null && is_file($attachmentPath) && is_readable($attachmentPath)
+                ? file_get_contents($attachmentPath)
+                : false;
+
+            $response = $contents !== false
+                ? $request->attach('attachment', $contents, $attachmentName ?? basename((string) $attachmentPath))
+                    ->post($this->url('/api/ingest/tickets'), self::multipart($payload))
+                : $request->post($this->url('/api/ingest/tickets'), $payload);
+
+            // 201 for a new report, 200 when Watchpost already has this one.
+            if (! in_array($response->status(), [200, 201], true)) {
+                return null;
+            }
+
+            $data = $response->json();
+
+            if (! is_array($data) || ! isset($data['ticket'], $data['number'], $data['url'])) {
+                return null;
+            }
+
+            return [
+                'ticket' => (int) $data['ticket'],
+                'number' => (string) $data['number'],
+                'url' => (string) $data['url'],
+                'linked_to_error' => (bool) ($data['linked_to_error'] ?? false),
+            ];
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
      * Success means the exact status Watchpost answers with, so a wrong
      * WATCHPOST_URL that happens to serve a normal page is not mistaken for it.
      *
@@ -54,17 +98,51 @@ class Client
      */
     private function post(string $path, array $payload, int $expectedStatus, ?float $timeout = null): bool
     {
-        $timeout ??= (float) config('watchpost.timeout', 2);
-
         try {
-            return Http::timeout($timeout)
-                ->connectTimeout($timeout)
-                ->acceptJson()
-                ->withToken((string) config('watchpost.token'))
-                ->post(rtrim((string) config('watchpost.url'), '/').$path, $payload)
+            return $this->request($timeout ?? (float) config('watchpost.timeout', 2))
+                ->post($this->url($path), $payload)
                 ->status() === $expectedStatus;
         } catch (Throwable) {
             return false;
         }
+    }
+
+    private function request(float $timeout): PendingRequest
+    {
+        return Http::timeout($timeout)
+            ->connectTimeout($timeout)
+            ->acceptJson()
+            ->withToken((string) config('watchpost.token'));
+    }
+
+    private function url(string $path): string
+    {
+        return rtrim((string) config('watchpost.url'), '/').$path;
+    }
+
+    /**
+     * Nested fields as form names (reporter[name], breadcrumbs[0][type]), the
+     * way Watchpost reads them from a multipart body. Empty values are left out.
+     *
+     * @param  array<array-key, mixed>  $data
+     * @return list<array{name: string, contents: string}>
+     */
+    private static function multipart(array $data, ?string $prefix = null): array
+    {
+        $parts = [];
+
+        foreach ($data as $key => $value) {
+            $name = $prefix === null ? (string) $key : $prefix.'['.$key.']';
+
+            if (is_array($value)) {
+                array_push($parts, ...self::multipart($value, $name));
+            } elseif (is_bool($value)) {
+                $parts[] = ['name' => $name, 'contents' => $value ? '1' : '0'];
+            } elseif (is_scalar($value)) {
+                $parts[] = ['name' => $name, 'contents' => (string) $value];
+            }
+        }
+
+        return $parts;
     }
 }
