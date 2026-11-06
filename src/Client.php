@@ -91,6 +91,47 @@ class Client
     }
 
     /**
+     * Tickets holding this website's reports that changed since the cursor,
+     * and the cursor for the next call. Null when Watchpost could not answer.
+     *
+     * @return array{tickets: list<array{ticket: int, number: string, url: string, status: string, resolved_at: string|null, references: list<string>}>, next_since: string}|null
+     */
+    public function fetchTicketUpdates(?string $since): ?array
+    {
+        try {
+            $response = $this->request((float) config('watchpost.timeout', 2))
+                ->get($this->url('/api/ingest/tickets/updates'), array_filter(['since' => $since]));
+
+            $data = $response->status() === 200 ? $response->json() : null;
+
+            if (! is_array($data) || ! is_array($data['tickets'] ?? null) || ! is_string($data['next_since'] ?? null)) {
+                return null;
+            }
+
+            $tickets = [];
+
+            foreach ($data['tickets'] as $ticket) {
+                if (! is_array($ticket) || ! isset($ticket['ticket'], $ticket['number'], $ticket['url'], $ticket['status'])) {
+                    continue;
+                }
+
+                $tickets[] = [
+                    'ticket' => (int) $ticket['ticket'],
+                    'number' => (string) $ticket['number'],
+                    'url' => (string) $ticket['url'],
+                    'status' => (string) $ticket['status'],
+                    'resolved_at' => isset($ticket['resolved_at']) ? (string) $ticket['resolved_at'] : null,
+                    'references' => array_values(array_map('strval', array_filter((array) ($ticket['references'] ?? []), 'is_scalar'))),
+                ];
+            }
+
+            return ['tickets' => $tickets, 'next_since' => $data['next_since']];
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
      * Success means the exact status Watchpost answers with, so a wrong
      * WATCHPOST_URL that happens to serve a normal page is not mistaken for it.
      *

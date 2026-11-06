@@ -4,6 +4,7 @@ namespace Kisantra\Watchpost\Http;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as IlluminateResponse;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Str;
 use Kisantra\Watchpost\Client;
@@ -92,6 +93,14 @@ class InjectBrowserScript
             ->map(fn ($value, $name) => ' '.$name.'="'.e($value).'"')
             ->implode('').'></script>';
 
+        // setContent() replaces the response's original view with the new string;
+        // keep the view, which the website's own tests read (viewData, assertInertia).
+        $original = $response instanceof IlluminateResponse ? $response->original : null;
+
         $response->setContent((string) preg_replace('~</head>~i', $tag.'</head>', (string) $response->getContent(), 1));
+
+        if ($original !== null && $response instanceof IlluminateResponse) {
+            $response->original = $original;
+        }
     }
 }

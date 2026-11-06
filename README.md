@@ -138,12 +138,35 @@ Watchpost::context(fn () => ['error_id' => request()->attributes->get('error_id'
 
 Paling banyak 20 nilai, berupa teks atau angka, masing-masing 255 karakter. Callback yang gagal dilewati tanpa mengganggu laporan error-nya.
 
+### Status tiket kembali ke website
+
+Sejak v1.3.0. Tiap menit, scheduler menjalankan `watchpost:sync-tickets`. Perintah ini menanyakan ke Watchpost tiket mana dari laporan website ini yang berubah (status, penugasan, komentar), lalu memicu event `TicketUpdated` untuk setiap tiket. Watchpost hanya ditanya kalau website punya listener untuk event itu, jadi website yang tidak memakainya tidak mengirim apa-apa.
+
+```php
+use Kisantra\Watchpost\Events\TicketUpdated;
+
+// AppServiceProvider::boot(), atau listener biasa di app/Listeners
+Event::listen(function (TicketUpdated $event) {
+    // $event->status: open, in_progress, resolved, ignored
+    // $event->references: reference yang Anda kirim lewat BugReport
+    foreach ($event->references as $reference) {
+        // cari laporannya, bandingkan statusnya, beri tahu pelapor bila berubah
+    }
+});
+```
+
+- Tiket yang sama bisa datang lebih dari sekali dengan status yang sama (misalnya karena ada komentar baru), jadi **bandingkan dulu** sebelum mengirim notifikasi.
+- Posisi terakhir disimpan di cache (`watchpost:tickets:since`). Kalau cache dikosongkan, perintah mulai lagi dari 24 jam terakhir.
+- Listener yang gagal dilaporkan sebagai error biasa, dan tiket lain tetap diproses.
+- Listener berjalan di proses scheduler, tanpa request web. Kalau website Anda multi-tenant, siapkan konteksnya sendiri di listener.
+
 ## Perintah
 
 | Perintah | Fungsi |
 |---|---|
 | `php artisan watchpost:test` | Cek koneksi: kirim satu heartbeat dan satu error uji |
 | `php artisan watchpost:heartbeat` | Kirim heartbeat sekarang (otomatis tiap menit lewat scheduler) |
+| `php artisan watchpost:sync-tickets` | Ambil perubahan status tiket laporan bug sekarang (otomatis tiap menit lewat scheduler) |
 
 ## Pengembangan
 
